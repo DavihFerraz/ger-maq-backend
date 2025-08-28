@@ -4,8 +4,9 @@ require('dotenv').config(); // Carrega as variáveis de ambiente do arquivo .env
 const express = require('express');
 const db = require('./config/database'); // Importa o nosso módulo de banco de dados
 
-// Importa as novas rotas de autenticação
+// Importações
 const authRoutes = require('./routes/authRoutes');
+const itemRoutes = require('./routes/itemRoutes');
 
 // Criar uma instancia do Express
 const app = express();
@@ -21,7 +22,9 @@ app.get('/', (req, res) => {
   res.send('API Ger-Maq está funcionando!');
 });    
 
+// Rotas
 app.use('/api/auth', authRoutes); // Usa as rotas de autenticação com o prefixo /api/auth
+app.use('/api/itens', itemRoutes); // Usa as rotas de itens com o prefix
 
 // Inicia o servidor e escuta na porta definida
 app.listen(PORT, async () => {
