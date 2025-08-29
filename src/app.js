@@ -2,6 +2,10 @@ require('dotenv').config(); // Carrega as variáveis de ambiente do arquivo .env
 
 // Importa o framework Express
 const express = require('express');
+
+const swaggerUi = require('swagger-ui-express');
+const swaggerjsdoc = require('swagger-jsdoc');
+
 const db = require('./config/database'); // Importa o nosso módulo de banco de dados
 
 // Importações
@@ -15,6 +19,35 @@ const app = express();
 // Define a porta em que o servidor irá rodar
 const PORT = 3000;
 
+// Configuração do Swagger
+const swaggerOptions = {
+  swaggerDefinition: {
+    openapi: '3.0.0',
+    info: {
+      title: 'API Gerenciador de Ativos',
+      version: '1.0.0',
+      description: 'Documentação da API',
+    },
+    servers: [
+      {
+        url: `http://localhost:${process.env.PORT || 3000}`,
+      },
+    ],
+    // As tags ainda são úteis para organizar
+    tags: [
+      { name: 'Autenticação' },
+      { name: 'Itens' },
+      { name: 'Empréstimos' },
+    ],
+  },
+  apis: ['./src/routes/*.js'],
+};
+
+
+
+// Gera a especificação do Swagger com base nas opções definidas
+const swaggerDocs = swaggerjsdoc(swaggerOptions);
+
 app.use(express.json()); // Middleware para o Express interpretar JSON no corpo das requisições
 
 
@@ -24,6 +57,8 @@ app.get('/', (req, res) => {
 });    
 
 // Rotas
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs)); // Rota para a documentação do Swagger
+
 app.use('/api/auth', authRoutes); // Usa as rotas de autenticação com o prefixo /api/auth
 app.use('/api/itens', itemRoutes); // Usa as rotas de itens com o prefix
 app.use('/api/emprestimos', emprestimoRoutes); // Usa as rotas de empréstimos com o prefixo /api/emprestimos
@@ -31,6 +66,7 @@ app.use('/api/emprestimos', emprestimoRoutes); // Usa as rotas de empréstimos c
 // Inicia o servidor e escuta na porta definida
 app.listen(PORT, async () => {
   console.log(`Servidor rodando em http://localhost:${PORT}`);
+  console.log(`Documentação da API disponível em http://localhost:${PORT}/api-docs`); // Mensagem útil no terminal
 
   try {
     const result = await db.query('SELECT NOW()'); // Faz uma consulta simples para pegar a hora atual do BD
