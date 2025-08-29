@@ -7,6 +7,7 @@ const db = require('./config/database'); // Importa o nosso módulo de banco de 
 // Importações
 const authRoutes = require('./routes/authRoutes');
 const itemRoutes = require('./routes/itemRoutes');
+const emprestimoRoutes = require('./routes/emprestimoRoutes');
 
 // Criar uma instancia do Express
 const app = express();
@@ -25,6 +26,7 @@ app.get('/', (req, res) => {
 // Rotas
 app.use('/api/auth', authRoutes); // Usa as rotas de autenticação com o prefixo /api/auth
 app.use('/api/itens', itemRoutes); // Usa as rotas de itens com o prefix
+app.use('/api/emprestimos', emprestimoRoutes); // Usa as rotas de empréstimos com o prefixo /api/emprestimos
 
 // Inicia o servidor e escuta na porta definida
 app.listen(PORT, async () => {
