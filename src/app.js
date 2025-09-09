@@ -12,6 +12,7 @@ const db = require('./config/database'); // Importa o nosso módulo de banco de 
 const authRoutes = require('./routes/authRoutes');
 const itemRoutes = require('./routes/itemRoutes');
 const emprestimoRoutes = require('./routes/emprestimoRoutes');
+const cors = require('cors');
 
 // Criar uma instancia do Express
 const app = express();
@@ -49,6 +50,7 @@ const swaggerOptions = {
 const swaggerDocs = swaggerjsdoc(swaggerOptions);
 
 app.use(express.json()); // Middleware para o Express interpretar JSON no corpo das requisições
+app.use(cors()); // Habilita CORS para todas as rotas
 
 
 // Cria uma rota de teste

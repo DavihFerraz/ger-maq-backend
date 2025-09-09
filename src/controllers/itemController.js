@@ -33,15 +33,30 @@ exports.getAllItems = async(req, res) => {
 
 // Atualizar um item 
 exports.updateItem = async (req, res) => {
-    const { id } = req.params; // Pega o ID do item a ser atualizado a partir do URL
-    const { patrimonio, categoria, modelo_tipo, status, setor, cadastrado_gpm, observacoes } = req.body;
+    const { id } = req.params;
+    const { 
+        patrimonio, categoria, modelo_tipo, status, setor, cadastrado_gpm, 
+        espec_processador, espec_ram, espec_armazenamento, observacoes 
+    } = req.body;
 
     try {
         const updatedItem = await db.query(
             `UPDATE itens_inventario SET 
-                patrimonio = $1, categoria = $2, modelo_tipo = $3, status = $4, setor = $5, cadastrado_gpm = $6, observacoes = $7
-             WHERE id = $8 RETURNING *`,
-            [patrimonio, categoria, modelo_tipo, status, setor, cadastrado_gpm, observacoes, id]
+                patrimonio = COALESCE($1, patrimonio), 
+                categoria = COALESCE($2, categoria), 
+                modelo_tipo = COALESCE($3, modelo_tipo), 
+                status = COALESCE($4, status), 
+                setor = COALESCE($5, setor), 
+                cadastrado_gpm = COALESCE($6, cadastrado_gpm), 
+                espec_processador = COALESCE($7, espec_processador), 
+                espec_ram = COALESCE($8, espec_ram), 
+                espec_armazenamento = COALESCE($9, espec_armazenamento), 
+                observacoes = COALESCE($10, observacoes)
+             WHERE id = $11 RETURNING *`,
+            [
+                patrimonio, categoria, modelo_tipo, status, setor, cadastrado_gpm,
+                espec_processador, espec_ram, espec_armazenamento, observacoes, id
+            ]
         );
 
         if (updatedItem.rows.length === 0) {
@@ -58,7 +73,7 @@ exports.updateItem = async (req, res) => {
 exports.deleteItem = async (req, res) => {
     const {id} = req.params;
     try {
-        const deleteOp = await db.query ('DELETE FROM itens_iventario WHERE id = $1', [id]);
+        const deleteOp = await db.query ('DELETE FROM itens_inventario WHERE id = $1', [id]);
         if(deleteOp.rowCount === 0){
             return res.status(404).json({message: 'Item não encontrado.'});
         }
