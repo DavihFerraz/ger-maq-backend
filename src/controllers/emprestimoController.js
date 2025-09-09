@@ -2,19 +2,19 @@ const db = require('../config/database');
 
 // Listar todos os empréstimos ativos (que não foram devolvidos)
 exports.getActiveEmprestimos = async (req, res) => {
-    try{
-        const {rows} = await db.query(
-            `SELECT e.id, e.pessoa_depto, e.data_emprestimo, i.patrimonio, i.modelo_tipo
-            FROM emprestimos e
-            JOIN itens_inventario i ON e.item_id = i.id
-            WHERE e.data_devolucao IS NULL
-            ORDER BY e.data_emprestimo DESC`
+    try {
+        const { rows } = await db.query(
+            // ADICIONADO "e.item_id" à consulta
+            `SELECT e.id, e.item_id, e.pessoa_depto, e.data_emprestimo, i.patrimonio, i.modelo_tipo 
+             FROM emprestimos e
+             JOIN itens_inventario i ON e.item_id = i.id
+             WHERE e.data_devolucao IS NULL
+             ORDER BY e.data_emprestimo DESC`
         );
         res.status(200).json(rows);
-
-    }catch (error) {
-        console.error('Erro ao buscar empréstimos ativos:', error);
-        res.status(500).json({ error: 'Erro ao buscar empréstimos ativos' });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Erro ao buscar empréstimos." });
     }
 };
 

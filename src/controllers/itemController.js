@@ -71,16 +71,28 @@ exports.updateItem = async (req, res) => {
 
 // Deletar um item
 exports.deleteItem = async (req, res) => {
-    const {id} = req.params;
+    const id = parseInt(req.params.id, 10);
+
     try {
-        const deleteOp = await db.query ('DELETE FROM itens_inventario WHERE id = $1', [id]);
-        if(deleteOp.rowCount === 0){
-            return res.status(404).json({message: 'Item não encontrado.'});
+        // 1. VERIFICA PRIMEIRO SE O ITEM TEM ALGUM EMPRÉSTIMO ASSOCIADO (passado ou presente)
+        const emprestimosResult = await db.query('SELECT id FROM emprestimos WHERE item_id = $1', [id]);
+
+        // Se a consulta retornar alguma linha, significa que o item tem um histórico
+        if (emprestimosResult.rows.length > 0) {
+            return res.status(400).json({ message: 'Não é possível excluir este item, pois ele possui um histórico de empréstimos. Considere alterar o seu status para "Inativo".' });
         }
-        res.status(200).json({message: 'Item deletado com sucesso.'});
+
+        // 2. SE NÃO HOUVER EMPRÉSTIMOS, AÍ SIM TENTA APAGAR
+        const deleteOp = await db.query('DELETE FROM itens_inventario WHERE id = $1', [id]);
+        
+        if (deleteOp.rowCount === 0) {
+            return res.status(404).json({ message: "Item não encontrado." });
+        }
+        
+        res.status(200).json({ message: "Item apagado com sucesso." });
 
     } catch (error) {
         console.error(error);
-        res.status(500).json({message: 'Erro ao deletar o item.'});
+        res.status(500).json({ message: "Erro no servidor ao tentar apagar o item." });
     }
-}
+};
