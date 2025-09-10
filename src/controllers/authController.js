@@ -62,3 +62,26 @@ exports.login = async (req, res) => {
         res.status(500).json({ message: "Erro no servidor ao tentar fazer login." });
     }
 };
+
+exports.changePassword = async (req, res) => {
+    const { id } = req.user; // Pega o ID do utilizador a partir do token JWT
+    const { senhaAtual, novaSenha } = req.body;
+    try {
+        const userResult = await db.query("SELECT * FROM usuarios WHERE id = $1", [id]);
+        if (userResult.rows.length === 0) {
+            return res.status(404).json({ message: "Utilizador não encontrado." });
+        }
+        const user = userResult.rows[0];
+        const isMatch = await bcrypt.compare(senhaAtual, user.senha_hash);
+        if (!isMatch) {
+            return res.status(401).json({ message: "Palavra-passe atual incorreta." });
+        }
+        const salt = await bcrypt.genSalt(10);
+        const senhaHash = await bcrypt.hash(novaSenha, salt);
+        await db.query("UPDATE usuarios SET senha_hash = $1 WHERE id = $2", [senhaHash, id]);
+        res.status(200).json({ message: "Palavra-passe alterada com sucesso." });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Erro no servidor ao tentar alterar a palavra-passe." });
+    }
+};
