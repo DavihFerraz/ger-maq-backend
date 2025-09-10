@@ -18,7 +18,7 @@ const cors = require('cors');
 const app = express();
 
 // Define a porta em que o servidor irá rodar
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 // Configuração do Swagger
 const swaggerOptions = {
