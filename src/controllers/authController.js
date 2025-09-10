@@ -26,42 +26,39 @@ exports.register = async (req, res) => {
 
 // Funçao para fazer login
 exports.login = async (req, res) => {
-    const {email, senha} = req.body;
+    const { login, senha } = req.body;
+    try {
+        const userResult = await db.query(
+            "SELECT * FROM usuarios WHERE email = $1 OR nome = $1", 
+            [login]
+        );
 
-    try{
-        // Procura o usuário pelo email
-        const userResult = await db.query("SELECT * FROM usuarios WHERE email = $1", [email]);
-
-        if (userResult.rows.length === 0){
-            return res.status(401).json({message: 'Credenciais inválidas'});
+        if (userResult.rows.length === 0) {
+            return res.status(401).json({ message: "Credenciais inválidas." });
         }
 
         const user = userResult.rows[0];
-
-        //Compara a senha fornecida com a senha armazenada
         const isMatch = await bcrypt.compare(senha, user.senha_hash);
 
-        if(!isMatch){
-            return res.status(401).json({message: 'Credenciais inválidas'});
+        if (!isMatch) {
+            return res.status(401).json({ message: "Credenciais inválidas." });
         }
 
-        // Se as credenciais forem válidas, gera um token JWT
-        const payload = {
-            id: user.id,
-            nome: user.nome,
-            permissao: user.permissao
+        // --- CORREÇÃO AQUI ---
+        // Adiciona o 'departamento' ao payload do token
+        const payload = { 
+            id: user.id, 
+            nome: user.nome, 
+            permissao: user.permissao,
+            departamento: user.departamento // <-- LINHA ADICIONADA
         };
+        // --- FIM DA CORREÇÃO ---
 
-        const token = jwt.sign(
-            payload,
-            process.env.JWT_SECRET, // Uma chave secreta para assinar o token
-            {expiresIn: '24h'} // O token expira em 24 hora
-        );
+        const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '8h' });
+        res.status(200).json({ message: "Login bem-sucedido!", token: token });
 
-        res.status(200).json({message: 'Login bem-sucedido', token});
-
-    }   catch(error){
+    } catch (error) {
         console.error(error);
-        res.status(500).json({message: 'Erro no servidor ao fazer login'});
+        res.status(500).json({ message: "Erro no servidor ao tentar fazer login." });
     }
-}
+};
