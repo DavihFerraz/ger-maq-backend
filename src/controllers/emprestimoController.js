@@ -83,7 +83,15 @@ exports.registerDevolucao = async (req, res) => {
 exports.getAllEmprestimos = async (req, res) => {
     try {
         const { rows } = await db.query(
-            `SELECT e.id, e.item_id, e.pessoa_depto, e.data_emprestimo, e.data_devolucao, i.patrimonio, i.modelo_tipo 
+            `SELECT 
+                e.id, 
+                e.item_id, 
+                e.pessoa_depto, 
+                e.data_emprestimo, 
+                e.data_devolucao, 
+                i.patrimonio, 
+                i.modelo_tipo,
+                i.categoria  -- Adiciona a categoria do item diretamente à resposta
              FROM emprestimos e
              JOIN itens_inventario i ON e.item_id = i.id
              ORDER BY e.data_emprestimo DESC`
