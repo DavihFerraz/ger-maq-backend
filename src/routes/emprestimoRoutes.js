@@ -59,4 +59,7 @@ router.post('/', emprestimoController.createEmprestimo);
  */
 router.put('/:id/devolver', emprestimoController.registerDevolucao);
 
+
+router.get('/', emprestimoController.getAllEmprestimos);
+
 module.exports = router;

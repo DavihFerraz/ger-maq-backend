@@ -79,3 +79,18 @@ exports.registerDevolucao = async (req, res) => {
         res.status(500).json({ error: 'Erro ao registrar devolução' });
     }
 };
+
+exports.getAllEmprestimos = async (req, res) => {
+    try {
+        const { rows } = await db.query(
+            `SELECT e.id, e.item_id, e.pessoa_depto, e.data_emprestimo, e.data_devolucao, i.patrimonio, i.modelo_tipo 
+             FROM emprestimos e
+             JOIN itens_inventario i ON e.item_id = i.id
+             ORDER BY e.data_emprestimo DESC`
+        );
+        res.status(200).json(rows);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Erro ao buscar empréstimos." });
+    }
+};
