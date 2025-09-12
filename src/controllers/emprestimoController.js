@@ -20,6 +20,7 @@ exports.getActiveEmprestimos = async (req, res) => {
 
 // Criar um novo emprestimo 
 exports.createEmprestimo = async (req, res) => {
+    // Agora aceitamos os IDs dos monitores no corpo do pedido
     const { item_id, pessoa_depto, monitores_ids } = req.body;
     const registrado_por_id = req.user.id;
 
@@ -29,9 +30,10 @@ exports.createEmprestimo = async (req, res) => {
             [item_id, pessoa_depto, registrado_por_id, monitores_ids]
         );
 
+        // Atualiza o status da máquina principal para "Em Uso"
         await db.query(`UPDATE itens_inventario SET status = 'Em Uso' WHERE id = $1`, [item_id]);
-
-        // Atualiza o status dos monitores associados
+        
+        // CORREÇÃO: Atualiza também o status dos monitores associados
         if (monitores_ids && monitores_ids.length > 0) {
             await db.query(`UPDATE itens_inventario SET status = 'Em Uso' WHERE id = ANY($1::int[])`, [monitores_ids]);
         }
@@ -42,6 +44,7 @@ exports.createEmprestimo = async (req, res) => {
         res.status(500).json({ message: "Erro ao registar o empréstimo." });
     }
 };
+
 // Registrar a devolução de um item emprestado
 exports.registerDevolucao = async (req, res) => {
     // Pega o ID da URL e converte para inteiro
@@ -89,9 +92,11 @@ exports.getAllEmprestimos = async (req, res) => {
                 e.data_devolucao, 
                 i.patrimonio, 
                 i.modelo_tipo,
-                i.categoria  -- Adiciona a categoria do item diretamente à resposta
+                i.categoria,
+                u.nome as nome_utilizador -- Adiciona o nome do utilizador que registou
              FROM emprestimos e
              JOIN itens_inventario i ON e.item_id = i.id
+             LEFT JOIN usuarios u ON e.registrado_por_id = u.id -- Faz a junção com a tabela de usuários
              ORDER BY e.data_emprestimo DESC`
         );
         res.status(200).json(rows);
