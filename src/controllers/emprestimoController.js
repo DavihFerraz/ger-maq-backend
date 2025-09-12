@@ -20,30 +20,28 @@ exports.getActiveEmprestimos = async (req, res) => {
 
 // Criar um novo emprestimo 
 exports.createEmprestimo = async (req, res) => {
-    const {item_id, pessoa_depto} = req.body;
-    const registrado_por_id = req.user.id; // Supondo que o ID do usuário autenticado esteja disponível em req.user.id
+    const { item_id, pessoa_depto, monitores_ids } = req.body;
+    const registrado_por_id = req.user.id;
 
-    try{
-        // Passo 1: Inserir o novo registro na tabela de empréstimos
+    try {
         const newEmprestimo = await db.query(
-            `INSERT INTO emprestimos (item_id, pessoa_depto, registrado_por_id) VALUES ($1, $2, $3) RETURNING *`,
-            [item_id, pessoa_depto, registrado_por_id]
+            `INSERT INTO emprestimos (item_id, pessoa_depto, registrado_por_id, monitores_associados_ids) VALUES ($1, $2, $3, $4) RETURNING *`,
+            [item_id, pessoa_depto, registrado_por_id, monitores_ids]
         );
 
-        // Passo 2: Atualizar o status do item no inventário para "Em uso"
-        await db.query(
-            `UPDATE itens_inventario SET status = 'Em uso' WHERE id = $1`,
-            [item_id]
-        );
+        await db.query(`UPDATE itens_inventario SET status = 'Em Uso' WHERE id = $1`, [item_id]);
+
+        // Atualiza o status dos monitores associados
+        if (monitores_ids && monitores_ids.length > 0) {
+            await db.query(`UPDATE itens_inventario SET status = 'Em Uso' WHERE id = ANY($1::int[])`, [monitores_ids]);
+        }
 
         res.status(201).json(newEmprestimo.rows[0]);
-
-    } catch(error){
+    } catch (error) {
         console.error(error);
-        res.status(500).json({ error: 'Erro ao registrar empréstimo' });
+        res.status(500).json({ message: "Erro ao registar o empréstimo." });
     }
 };
-
 // Registrar a devolução de um item emprestado
 exports.registerDevolucao = async (req, res) => {
     // Pega o ID da URL e converte para inteiro
