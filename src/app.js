@@ -12,6 +12,7 @@ const db = require('./config/database'); // Importa o nosso módulo de banco de 
 const authRoutes = require('./routes/authRoutes');
 const itemRoutes = require('./routes/itemRoutes');
 const emprestimoRoutes = require('./routes/emprestimoRoutes');
+const modeloRoutes = require('./routes/modeloRoutes');
 const cors = require('cors');
 
 // Criar uma instancia do Express
@@ -64,6 +65,7 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs)); // Rota par
 app.use('/api/auth', authRoutes); // Usa as rotas de autenticação com o prefixo /api/auth
 app.use('/api/itens', itemRoutes); // Usa as rotas de itens com o prefix
 app.use('/api/emprestimos', emprestimoRoutes); // Usa as rotas de empréstimos com o prefixo /api/emprestimos
+app.use('/api/modelos', modeloRoutes); // Usa as rotas de modelos com o prefixo /api/modelos
 
 // Inicia o servidor e escuta na porta definida
 app.listen(PORT, async () => {
