@@ -47,37 +47,31 @@ exports.createEmprestimo = async (req, res) => {
 
 // Registrar a devolução de um item emprestado
 exports.registerDevolucao = async (req, res) => {
-    // Pega o ID da URL e converte para inteiro
-    const emprestimo_id = parseInt(req.params.id, 10) // ID do empréstimo a ser devolvido
+    const id = parseInt(req.params.id, 10);
 
-    // Adicionar uma validação para garantir que o ID é um número válido
-    if (isNaN(emprestimo_id)) {
-        return res.status(400).json({ error: 'ID de empréstimo inválido' });
-    }
-
-    try{
-        // Passo 1: Atualizar o registro de emprestimo com a data de devolução
+    try {
+        // Encontra o empréstimo e atualiza a data de devolução
         const emprestimoResult = await db.query(
-            `UPDATE emprestimos SET data_devolucao = NOW() WHERE id = $1 RETURNING *`,
-            [emprestimo_id]
+            `UPDATE emprestimos SET data_devolucao = NOW() WHERE id = $1 RETURNING item_id`,
+            [id]
         );
+
         if (emprestimoResult.rows.length === 0) {
-            return res.status(404).json({ error: 'Empréstimo não encontrado' });
+            return res.status(404).json({ message: "Registo de empréstimo não encontrado." });
         }
 
-        const {item_id} = emprestimoResult.rows[0];
+        const { item_id } = emprestimoResult.rows[0];
 
-        // Passo 2: Atualizar o status do item no inventário para "Disponível"
+        // CORREÇÃO: Atualiza o status do item de volta para "Disponível"
         await db.query(
             `UPDATE itens_inventario SET status = 'Disponível' WHERE id = $1`,
             [item_id]
         );
 
-        res.status(200).json({ message: 'Devolução registrada com sucesso' });
-
-    } catch(error){
+        res.status(200).json({ message: "Devolução registada com sucesso." });
+    } catch (error) {
         console.error(error);
-        res.status(500).json({ error: 'Erro ao registrar devolução' });
+        res.status(500).json({ message: "Erro ao registar a devolução." });
     }
 };
 
