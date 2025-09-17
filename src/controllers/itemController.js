@@ -2,22 +2,23 @@ const { json } = require('express');
 const db = require('../config/database');
 
 // Criar um novo item 
+
 exports.createItem = async (req, res) => {
-    const {patrimonio, categoria, modelo_tipo, setor, cadastrado_gpm, espec_processador, espec_ram, espec_armazenamento, observacoes} = req.body;
-    const criado_por_id = req.user.id; // Pegamos o ID do usuario que fez o pedido (do nosso middleware de autenticação)
+  // Adiciona os novos campos
+  const { patrimonio, categoria, modelo_tipo, setor, cadastrado_gpm, observacoes, classe, estado_conservacao } = req.body;
+  const criado_por_id = req.user.id;
 
-    try {
-        const newItem = await db.query(
-            `INSERT INTO itens_inventario (patrimonio, categoria, modelo_tipo, setor, cadastrado_gpm, espec_processador, espec_ram, espec_armazenamento, observacoes, criado_por_id) 
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
-            [patrimonio, categoria, modelo_tipo, setor, cadastrado_gpm, espec_processador, espec_ram, espec_armazenamento, observacoes, criado_por_id]
-        );
-        res.status(201).json(newItem.rows[0]);
-
-    } catch (error) {
-        console.error(error);
-        res.status(500),json({message: 'Erro no servidor ao criar item.'});
-    }
+  try {
+    const newItem = await db.query(
+      `INSERT INTO itens_inventario (patrimonio, categoria, modelo_tipo, setor, cadastrado_gpm, observacoes, classe, estado_conservacao, criado_por_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+      [patrimonio, categoria, modelo_tipo, setor, cadastrado_gpm, observacoes, classe, estado_conservacao, criado_por_id]
+    );
+    res.status(201).json(newItem.rows[0]);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Erro ao criar o item." });
+  }
 };
 
 // Listar todos os itens
