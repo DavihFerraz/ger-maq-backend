@@ -45,19 +45,13 @@ const swaggerOptions = {
   },
   apis: ['./src/routes/*.js'],
 };
-const corsOptions = {
-  origin: ['http://localhost:5500', 'http://127.0.0.1:5500'], // Adicione aqui os endereços do seu frontend
-  methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
-  credentials: true,
-  optionsSuccessStatus: 204
-};
 
 
 // Gera a especificação do Swagger com base nas opções definidas
 const swaggerDocs = swaggerjsdoc(swaggerOptions);
 
 app.use(express.json()); // Middleware para o Express interpretar JSON no corpo das requisições
-app.use(cors(corsOptions)); // Habilita CORS para todas as rotas
+app.use(cors()); // Habilita CORS para todas as rotas
 
 
 // Cria uma rota de teste
