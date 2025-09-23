@@ -1,10 +1,10 @@
+// src/controllers/emprestimoController.js
 const db = require('../config/database');
 
 // Listar todos os empréstimos ativos (que não foram devolvidos)
 exports.getActiveEmprestimos = async (req, res) => {
     try {
         const { rows } = await db.query(
-            // ADICIONADO "e.item_id" à consulta
             `SELECT e.id, e.item_id, e.pessoa_depto, e.data_emprestimo, i.patrimonio, i.modelo_tipo 
              FROM emprestimos e
              JOIN itens_inventario i ON e.item_id = i.id
@@ -20,7 +20,6 @@ exports.getActiveEmprestimos = async (req, res) => {
 
 // Criar um novo emprestimo 
 exports.createEmprestimo = async (req, res) => {
-    // Agora aceitamos os IDs dos monitores no corpo do pedido
     const { item_id, pessoa_depto, monitores_ids } = req.body;
     const registrado_por_id = req.user.id;
 
@@ -33,7 +32,7 @@ exports.createEmprestimo = async (req, res) => {
         // Atualiza o status da máquina principal para "Em Uso"
         await db.query(`UPDATE itens_inventario SET status = 'Em Uso' WHERE id = $1`, [item_id]);
         
-        // CORREÇÃO: Atualiza também o status dos monitores associados
+        // Atualiza também o status dos monitores associados
         if (monitores_ids && monitores_ids.length > 0) {
             await db.query(`UPDATE itens_inventario SET status = 'Em Uso' WHERE id = ANY($1::int[])`, [monitores_ids]);
         }
@@ -50,9 +49,8 @@ exports.registerDevolucao = async (req, res) => {
     const id = parseInt(req.params.id, 10);
 
     try {
-        // Encontra o empréstimo e atualiza a data de devolução
         const emprestimoResult = await db.query(
-            `UPDATE emprestimos SET data_devolucao = NOW() WHERE id = $1 RETURNING item_id`,
+            `UPDATE emprestimos SET data_devolucao = NOW() WHERE id = $1 RETURNING item_id, monitores_associados_ids`,
             [id]
         );
 
@@ -60,13 +58,21 @@ exports.registerDevolucao = async (req, res) => {
             return res.status(404).json({ message: "Registo de empréstimo não encontrado." });
         }
 
-        const { item_id } = emprestimoResult.rows[0];
+        const { item_id, monitores_associados_ids } = emprestimoResult.rows[0];
 
-        // CORREÇÃO: Atualiza o status do item de volta para "Disponível"
+        // Atualiza o status do item principal de volta para "Disponível"
         await db.query(
             `UPDATE itens_inventario SET status = 'Disponível' WHERE id = $1`,
             [item_id]
         );
+
+        // Se existirem monitores associados, atualiza também o status deles
+        if (monitores_associados_ids && monitores_associados_ids.length > 0) {
+            await db.query(
+                `UPDATE itens_inventario SET status = 'Disponível' WHERE id = ANY($1::int[])`,
+                [monitores_associados_ids]
+            );
+        }
 
         res.status(200).json({ message: "Devolução registada com sucesso." });
     } catch (error) {
@@ -75,22 +81,16 @@ exports.registerDevolucao = async (req, res) => {
     }
 };
 
+// Listar TODO o histórico de empréstimos
 exports.getAllEmprestimos = async (req, res) => {
     try {
         const { rows } = await db.query(
             `SELECT 
-                e.id, 
-                e.item_id, 
-                e.pessoa_depto, 
-                e.data_emprestimo, 
-                e.data_devolucao, 
-                i.patrimonio, 
-                i.modelo_tipo,
-                i.categoria,
-                u.nome as nome_utilizador -- Adiciona o nome do utilizador que registou
+                e.id, e.item_id, e.pessoa_depto, e.data_emprestimo, e.data_devolucao, 
+                i.patrimonio, i.modelo_tipo, i.categoria, u.nome as nome_utilizador
              FROM emprestimos e
              JOIN itens_inventario i ON e.item_id = i.id
-             LEFT JOIN usuarios u ON e.registrado_por_id = u.id -- Faz a junção com a tabela de usuários
+             LEFT JOIN usuarios u ON e.registrado_por_id = u.id
              ORDER BY e.data_emprestimo DESC`
         );
         res.status(200).json(rows);

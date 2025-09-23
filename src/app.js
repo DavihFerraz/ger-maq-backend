@@ -13,6 +13,7 @@ const authRoutes = require('./routes/authRoutes');
 const itemRoutes = require('./routes/itemRoutes');
 const emprestimoRoutes = require('./routes/emprestimoRoutes');
 const modeloRoutes = require('./routes/modeloRoutes');
+const dashboardRoutes = require('./routes/dashboardRoutes');
 const cors = require('cors');
 
 // Criar uma instancia do Express
@@ -44,14 +45,19 @@ const swaggerOptions = {
   },
   apis: ['./src/routes/*.js'],
 };
-
+const corsOptions = {
+  origin: ['http://localhost:5500', 'http://127.0.0.1:5500'], // Adicione aqui os endereços do seu frontend
+  methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
+  credentials: true,
+  optionsSuccessStatus: 204
+};
 
 
 // Gera a especificação do Swagger com base nas opções definidas
 const swaggerDocs = swaggerjsdoc(swaggerOptions);
 
 app.use(express.json()); // Middleware para o Express interpretar JSON no corpo das requisições
-app.use(cors()); // Habilita CORS para todas as rotas
+app.use(cors(corsOptions)); // Habilita CORS para todas as rotas
 
 
 // Cria uma rota de teste
@@ -66,6 +72,7 @@ app.use('/api/auth', authRoutes); // Usa as rotas de autenticação com o prefix
 app.use('/api/itens', itemRoutes); // Usa as rotas de itens com o prefix
 app.use('/api/emprestimos', emprestimoRoutes); // Usa as rotas de empréstimos com o prefixo /api/emprestimos
 app.use('/api/modelos', modeloRoutes); // Usa as rotas de modelos com o prefixo /api/modelos
+app.use('/api/dashboard', dashboardRoutes); // Usa as rotas do dashboard com o prefixo /api/dashboard
 
 // Inicia o servidor e escuta na porta definida
 app.listen(PORT, async () => {
