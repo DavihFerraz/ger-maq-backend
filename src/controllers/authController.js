@@ -54,7 +54,7 @@ exports.login = async (req, res) => {
         };
         // --- FIM DA CORREÇÃO ---
 
-        const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '8h' });
+        const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN || '8h' });
         res.status(200).json({ message: "Login bem-sucedido!", token: token });
 
     } catch (error) {

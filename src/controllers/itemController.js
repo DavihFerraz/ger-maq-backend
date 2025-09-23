@@ -23,11 +23,14 @@ exports.createItem = async (req, res) => {
 
 // Listar todos os itens
 exports.getAllItems = async(req, res) => {
+    // bloco try-catch para lidar com erros de banco de dados
     try{
         const {rows} = await db.query('SELECT * FROM itens_inventario ORDER BY categoria, modelo_tipo');
+        // resposta de sucesso com os itens em formato JSON
         res.status(200).json(rows);
     } catch(error){
         console.error(error);
+        // resposta de erro em caso de falha na consulta
         res.status(500).json({message: 'Erro no servidor ao buscar itens.'});
     }
 }
