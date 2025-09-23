@@ -100,3 +100,28 @@ exports.deleteItem = async (req, res) => {
         res.status(500).json({ message: "Erro no servidor ao tentar apagar o item." });
     }
 };
+
+// Buscar o histórico de empréstimos de um item específico
+exports.getItemHistory = async (req, res) => {
+    const { id } = req.params; // Pega o ID do item a partir da URL
+
+    try {
+        const { rows } = await db.query(
+            `SELECT e.pessoa_depto, e.data_emprestimo, e.data_devolucao, u.nome as nome_utilizador
+             FROM emprestimos e
+             LEFT JOIN usuarios u ON e.registrado_por_id = u.id
+             WHERE e.item_id = $1
+             ORDER BY e.data_emprestimo DESC`,
+            [id]
+        );
+
+        if (rows.length === 0) {
+            return res.status(200).json([]); // Retorna uma lista vazia se não houver histórico
+        }
+
+        res.status(200).json(rows);
+    } catch (error) {
+        console.error("Erro ao buscar histórico do item:", error);
+        res.status(500).json({ message: "Erro no servidor ao buscar histórico do item." });
+    }
+};

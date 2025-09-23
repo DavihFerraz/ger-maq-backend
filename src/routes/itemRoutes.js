@@ -107,4 +107,6 @@ router.delete('/:id', itemController.deleteItem);
  *         description: Item não encontrado
  */
 router.put('/:id', itemController.updateItem);
+
+router.get('/:id/historico', itemController.getItemHistory);
 module.exports = router;
