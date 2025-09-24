@@ -1,4 +1,13 @@
-require('dotenv').config(); // Carrega as variáveis de ambiente do arquivo .env
+const path = require('path');
+
+// Carrega as variáveis de ambiente corretas com base no NODE_ENV
+if (process.env.NODE_ENV === 'development') {
+  console.log('A executar em ambiente de DESENVOLVIMENTO...');
+  require('dotenv').config({ path: path.resolve(__dirname, '../.env.dev') });
+} else {
+  console.log('A executar em ambiente de PRODUÇÃO...');
+  require('dotenv').config(); // Carrega o ficheiro .env padrão
+}
 
 // Importa o framework Express
 const express = require('express');
