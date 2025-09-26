@@ -1,29 +1,30 @@
 // scripts/migrar.js
 const xlsx = require('xlsx');
 const path = require('path');
-const axios = require('axios'); // Vamos usar axios para fazer os pedidos à API
+const axios = require('axios');
 
 // --- CONFIGURAÇÃO ---
-// Coloque o caminho para o seu ficheiro .xlsx aqui
-const caminhoExcel = path.resolve(__dirname, '../../relatorio_entidade(3).xlsx');
-// Coloque o URL da sua API (local para testar, da Render para produção)
+const caminhoExcel = path.resolve(__dirname, '../relatorio_entidade(3).xlsx'); // Ajustado para a raiz do projeto
 const API_URL = 'http://localhost:3000/api/itens'; 
-
-// Coloque um token JWT válido de um utilizador administrador
-const AUTH_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6NSwibm9tZSI6ImRhdmloZmVycmF6IiwicGVybWlzc2FvIjoiYWRtaW4iLCJkZXBhcnRhbWVudG8iOiJUSSIsImlhdCI6MTc1ODExNDQxMywiZXhwIjoxNzU4MTQzMjEzfQ.pjkbRf_3cqYBlHUI3wrz3ba4yhbmx1keql1h-mppD84'; 
+// IMPORTANTE: Gere um novo token válido e cole-o aqui antes de executar
+const AUTH_TOKEN = 'SEU_TOKEN_AQUI'; 
 // --- FIM DA CONFIGURAÇÃO ---
 
+// Função para extrair o nome do setor de forma mais limpa
+function extrairSetor(unidadeResponsavel) {
+    if (!unidadeResponsavel) return 'A Migrar';
+    const partes = unidadeResponsavel.split('/');
+    return partes[partes.length - 1]; // Pega a última parte (ex: DEPARTAMFINANCEIRO)
+}
 
-// Função para definir a categoria com base na classe do GPM
+// Função para definir a categoria com base na classe
 function definirCategoria(classeGPM) {
     if (!classeGPM) return 'OUTROS';
     const classe = classeGPM.toLowerCase();
 
-    if (classe.includes('processamento de dados')) {
-        // Verifica se a descrição contém "monitor" para refinar a categoria
-        return 'COMPUTADOR'; // Temporariamente, podemos refinar depois
-    }
+    if (classe.includes('processamento de dados')) return 'COMPUTADOR';
     if (classe.includes('mobiliário')) return 'MOBILIARIO';
+    if (classe.includes('monitor')) return 'MONITOR'; // Adicionado para monitores
 
     return 'OUTROS';
 }
@@ -35,20 +36,22 @@ async function migrarDados() {
         const worksheet = workbook.Sheets[sheetName];
         const dadosJSON = xlsx.utils.sheet_to_json(worksheet);
 
-        console.log(`Encontrados ${dadosJSON.length} registos na planilha. Iniciando a migração...`);
+        console.log(`Encontrados ${dadosJSON.length} registos. A iniciar a migração para a API em ${API_URL}`);
 
         for (const row of dadosJSON) {
+            // Mapeamento "lapidado" dos campos
             const dadosItem = {
                 patrimonio: row['PLAQUETA'] ? String(row['PLAQUETA']) : 'S/P',
                 modelo_tipo: row['DESCRIÇÃO PATRIMONIO'] || 'Não especificado',
-                classe: row['CLASSE'] || null,
-                estado_conservacao: row['ESTADO DE \nCONS.'] || null,
+                setor: extrairSetor(row['UNIDADE RESPONSÁVEL']),
+                classe: row['CLASSE'] || 'Não especificado',
+                estado_conservacao: row['ESTADO DE \nCONS.'] || 'Regular',
                 categoria: definirCategoria(row['CLASSE']),
-                setor: 'A Migrar' // Define um setor padrão
+                cadastrado_gpm: true // Assumindo que todos os itens desta lista já estão no GPM
             };
 
             try {
-                console.log(`A enviar item: ${dadosItem.patrimonio} - ${dadosItem.modelo_tipo}`);
+                console.log(`A enviar: ${dadosItem.patrimonio} - ${dadosItem.modelo_tipo}`);
                 await axios.post(API_URL, dadosItem, {
                     headers: { 'Authorization': `Bearer ${AUTH_TOKEN}` }
                 });
