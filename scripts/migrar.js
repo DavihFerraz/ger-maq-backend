@@ -18,13 +18,18 @@ function extrairSetor(unidadeResponsavel) {
 }
 
 // Função para definir a categoria com base na classe
-function definirCategoria(classeGPM) {
-    if (!classeGPM) return 'OUTROS';
-    const classe = classeGPM.toLowerCase();
+function definirCategoria(descricao, classeGPM) {
+    const desc = (descricao || '').toLowerCase();
+    const classe = (classeGPM || '').toLowerCase();
 
+    // Prioridade 1: Verifica a descrição por palavras-chave
+    if (desc.includes('monitor')) return 'MONITOR';
+    if (desc.includes('cadeira') || desc.includes('mesa') || desc.includes('armario')) return 'MOBILIARIO';
+    if (desc.includes('impressora')) return 'IMPRESSORA';
+    
+    // Prioridade 2: Se não encontrar na descrição, verifica a classe (como antes)
     if (classe.includes('processamento de dados')) return 'COMPUTADOR';
     if (classe.includes('mobiliário')) return 'MOBILIARIO';
-    if (classe.includes('monitor')) return 'MONITOR'; // Adicionado para monitores
 
     return 'OUTROS';
 }
@@ -46,7 +51,7 @@ async function migrarDados() {
                 setor: extrairSetor(row['UNIDADE RESPONSÁVEL']),
                 classe: row['CLASSE'] || 'Não especificado',
                 estado_conservacao: row['ESTADO DE \nCONS.'] || 'Regular',
-                categoria: definirCategoria(row['CLASSE']),
+                categoria: definirCategoria(row['DESCRIÇÃO PATRIMONIO'], row['CLASSE']),
                 cadastrado_gpm: true // Assumindo que todos os itens desta lista já estão no GPM
             };
 
