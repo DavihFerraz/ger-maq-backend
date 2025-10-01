@@ -4,16 +4,24 @@ const db = require('../config/database');
 // Criar um novo item 
 
 exports.createItem = async (req, res) => {
-  // ATUALIZADO: Remove 'classe' da desestruturação, pois não virá mais do frontend
-  const { patrimonio, categoria, modelo_tipo, setor, cadastrado_gpm, observacoes, estado_conservacao } = req.body;
+  const { 
+      patrimonio, categoria, modelo_tipo, setor, cadastrado_gpm, observacoes, 
+      estado_conservacao, espec_processador, espec_ram, espec_armazenamento 
+  } = req.body;
   const criado_por_id = req.user.id;
 
   try {
-    // A query agora tem um campo a menos para preencher ($8 em vez de $9)
+    // ATUALIZADO: A query agora inclui as novas colunas e valores
     const newItem = await db.query(
-      `INSERT INTO itens_inventario (patrimonio, categoria, modelo_tipo, setor, cadastrado_gpm, observacoes, classe, estado_conservacao, criado_por_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $2, $7, $8) RETURNING *`, // A 'classe' agora usa o valor de 'categoria' ($2)
-      [patrimonio, categoria, modelo_tipo, setor, cadastrado_gpm, observacoes, estado_conservacao, criado_por_id] // O array de valores também foi ajustado
+      `INSERT INTO itens_inventario (
+          patrimonio, categoria, modelo_tipo, setor, cadastrado_gpm, observacoes, 
+          estado_conservacao, criado_por_id, espec_processador, espec_ram, espec_armazenamento
+       )
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
+      [
+          patrimonio, categoria, modelo_tipo, setor, cadastrado_gpm, observacoes, 
+          estado_conservacao, criado_por_id, espec_processador, espec_ram, espec_armazenamento
+      ]
     );
     res.status(201).json(newItem.rows[0]);
   } catch (error) {
