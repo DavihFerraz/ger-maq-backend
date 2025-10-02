@@ -58,18 +58,26 @@ exports.createItem = async (req, res) => {
 
 
 // Listar todos os itens
-exports.getAllItems = async(req, res) => {
-    // bloco try-catch para lidar com erros de banco de dados
-    try{
-        const {rows} = await db.query('SELECT * FROM itens_inventario ORDER BY categoria, modelo_tipo');
-        // resposta de sucesso com os itens em formato JSON
+exports.getAllItems = async (req, res) => {
+    try {
+        // A consulta agora faz um LEFT JOIN com a tabela 'setores' para buscar o nome do setor.
+        // Usamos LEFT JOIN para garantir que, se um item não tiver setor, ele ainda apareça na lista.
+        const { rows } = await db.query(`
+            SELECT 
+                i.*, 
+                s.nome as setor_nome 
+            FROM itens_inventario i
+            LEFT JOIN setores s ON i.setor_id = s.id
+            ORDER BY i.categoria, i.modelo_tipo
+        `);
+
         res.status(200).json(rows);
-    } catch(error){
+    } catch (error) {
         console.error(error);
-        // resposta de erro em caso de falha na consulta
-        res.status(500).json({message: 'Erro no servidor ao buscar itens.'});
+        res.status(500).json({ message: 'Erro no servidor ao buscar itens.' });
     }
-}
+};
+
 
 // Atualizar um item 
 exports.updateItem = async (req, res) => {

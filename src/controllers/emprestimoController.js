@@ -4,19 +4,30 @@ const db = require('../config/database');
 // Listar todos os empréstimos ativos (que não foram devolvidos)
 exports.getActiveEmprestimos = async (req, res) => {
     try {
+        // A consulta agora faz um JOIN extra com a tabela 'setores'
         const { rows } = await db.query(
-            `SELECT e.id, e.item_id, e.pessoa_depto, e.data_emprestimo, i.patrimonio, i.modelo_tipo 
+            `SELECT 
+                e.id, 
+                e.item_id, 
+                e.pessoa_depto, 
+                e.data_emprestimo, 
+                i.patrimonio, 
+                i.modelo_tipo,
+                s.nome as setor_nome -- <-- Buscando o nome do setor
              FROM emprestimos e
              JOIN itens_inventario i ON e.item_id = i.id
+             LEFT JOIN setores s ON i.setor_id = s.id -- <-- Fazendo a junção com a tabela setores
              WHERE e.data_devolucao IS NULL
              ORDER BY e.data_emprestimo DESC`
         );
+
         res.status(200).json(rows);
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: "Erro ao buscar empréstimos." });
     }
 };
+
 
 // Criar um novo emprestimo 
 exports.createEmprestimo = async (req, res) => {
