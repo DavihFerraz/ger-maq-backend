@@ -1,77 +1,89 @@
-// scripts/migrar.js
-const xlsx = require('xlsx');
+// ger-maq-backend/scripts/migrar.js
+
 const path = require('path');
+const xlsx = require('xlsx');
 const axios = require('axios');
 
 // --- CONFIGURAÇÃO ---
-const caminhoExcel = path.resolve(__dirname, '../relatorio_entidade(3).xlsx'); // Ajustado para a raiz do projeto
-const API_URL = 'http://localhost:3000/api/itens'; 
-// IMPORTANTE: Gere um novo token válido e cole-o aqui antes de executar
-const AUTH_TOKEN = 'SEU_TOKEN_AQUI'; 
+const AUTH_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6Miwibm9tZSI6ImRhdmloZmVycmF6IiwicGVybWlzc2FvIjoiYWRtaW4iLCJkZXBhcnRhbWVudG8iOiJUSSIsImlhdCI6MTc1OTQwODk1OSwiZXhwIjoxNzYwMDEzNzU5fQ.VfvpIVj1WqHdYD3BSHMeBXI-RWbM0ArG38HjPd_b_o4'; // COLE SEU TOKEN VÁLIDO AQUI
+const API_HOST = 'http://localhost:3000';
 // --- FIM DA CONFIGURAÇÃO ---
 
-// Função para extrair o nome do setor de forma mais limpa
-function extrairSetor(unidadeResponsavel) {
-    if (!unidadeResponsavel) return 'A Migrar';
-    const partes = unidadeResponsavel.split('/');
-    return partes[partes.length - 1]; // Pega a última parte (ex: DEPARTAMFINANCEIRO)
+const excelFilePath = path.resolve(__dirname, '..', 'relatorio_entidade(3).xlsx');
+const AUTH_HEADERS = { headers: { 'Authorization': `Bearer ${AUTH_TOKEN}` } };
+
+// Função robusta para encontrar um valor em múltiplas colunas possíveis
+function encontrarValor(row, ...nomesPossiveis) {
+    for (const nome of nomesPossiveis) {
+        if (row[nome]) {
+            return row[nome];
+        }
+    }
+    return null;
 }
 
-// Função para definir a categoria com base na classe
-function definirCategoria(descricao, classeGPM) {
-    const desc = (descricao || '').toLowerCase();
-    const classe = (classeGPM || '').toLowerCase();
+function extrairSetor(unidadeResponsavel) {
+    if (!unidadeResponsavel) return 'INDEFINIDO';
+    const partes = String(unidadeResponsavel).split('/');
+    return partes[partes.length - 1] || 'INDEFINIDO';
+}
 
-    // Prioridade 1: Verifica a descrição por palavras-chave
+function definirCategoria(descricao) {
+    const desc = String(descricao || '').toLowerCase();
     if (desc.includes('monitor')) return 'MONITOR';
-    if (desc.includes('cadeira') || desc.includes('mesa') || desc.includes('armario')) return 'MOBILIARIO';
-    if (desc.includes('impressora')) return 'IMPRESSORA';
-    
-    // Prioridade 2: Se não encontrar na descrição, verifica a classe (como antes)
-    if (classe.includes('processamento de dados')) return 'COMPUTADOR';
-    if (classe.includes('mobiliário')) return 'MOBILIARIO';
-
+    if (desc.includes('cadeira') || desc.includes('mesa') || desc.includes('armario') || desc.includes('gaveteiro') || desc.includes('sofa')) return 'MOBILIARIO';
+    if (desc.includes('desktop') || desc.includes('computador') || desc.includes('cpu') || desc.includes('notebook') || desc.includes('thinkstation') || desc.includes('optiplex')) return 'COMPUTADOR';
     return 'OUTROS';
 }
 
-async function migrarDados() {
+const migrarDados = async () => {
     try {
-        const workbook = xlsx.readFile(caminhoExcel);
+        console.log('Iniciando a migração de dados...');
+        const workbook = xlsx.readFile(excelFilePath);
         const sheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[sheetName];
-        const dadosJSON = xlsx.utils.sheet_to_json(worksheet);
+        const itensParaInserir = xlsx.utils.sheet_to_json(worksheet);
 
-        console.log(`Encontrados ${dadosJSON.length} registos. A iniciar a migração para a API em ${API_URL}`);
+        console.log(`Encontrados ${itensParaInserir.length} registros. Iniciando a inserção via API...`);
 
-        for (const row of dadosJSON) {
-            // Mapeamento "lapidado" dos campos
+        for (const [index, row] of itensParaInserir.entries()) {
+            const patrimonio = encontrarValor(row, 'PLAQUETA');
+            const descricao = encontrarValor(row, 'DESCRIÇÃO PATRIMONIO');
+            const unidadeResponsavel = encontrarValor(row, 'UNIDADE RESPONSAVEL', 'UNIDADE RESPONSÁVEL');
+            const estadoConservacao = encontrarValor(row, 'ESTADO DE \nCONS.', 'ESTADO DE CONS.');
+
+            if (!patrimonio) continue;
+
             const dadosItem = {
-                patrimonio: row['PLAQUETA'] ? String(row['PLAQUETA']) : 'S/P',
-                modelo_tipo: row['DESCRIÇÃO PATRIMONIO'] || 'Não especificado',
-                setor: extrairSetor(row['UNIDADE RESPONSÁVEL']),
-                classe: row['CLASSE'] || 'Não especificado',
-                estado_conservacao: row['ESTADO DE \nCONS.'] || 'Regular',
-                categoria: definirCategoria(row['DESCRIÇÃO PATRIMONIO'], row['CLASSE']),
-                cadastrado_gpm: true // Assumindo que todos os itens desta lista já estão no GPM
+                patrimonio: String(patrimonio),
+                categoria: definirCategoria(descricao),
+                modelo_tipo: descricao || 'N/A',
+                setor: extrairSetor(unidadeResponsavel),
+                estado_conservacao: estadoConservacao || 'Regular'
             };
 
             try {
-                console.log(`A enviar: ${dadosItem.patrimonio} - ${dadosItem.modelo_tipo}`);
-                await axios.post(API_URL, dadosItem, {
-                    headers: { 'Authorization': `Bearer ${AUTH_TOKEN}` }
-                });
-                console.log(`--> SUCESSO: Item ${dadosItem.patrimonio} migrado.`);
+                await axios.post(`${API_HOST}/api/itens`, dadosItem, AUTH_HEADERS);
+                console.log(`[${index + 1}/${itensParaInserir.length}] SUCESSO: Item ${dadosItem.patrimonio} migrado.`);
             } catch (error) {
-                const errorMessage = error.response ? error.response.data.message : error.message;
-                console.error(`--> ERRO ao migrar item ${dadosItem.patrimonio}: ${errorMessage}`);
+                const errorMessage = error.response ? JSON.stringify(error.response.data) : error.message;
+                console.error(`[${index + 1}/${itensParaInserir.length}] ERRO ao migrar item ${dadosItem.patrimonio}: ${errorMessage}`);
             }
         }
-        console.log('Migração concluída.');
+
+        console.log('------------------------------------');
+        console.log('MIGRAÇÃO CONCLUÍDA!');
+        console.log('------------------------------------');
 
     } catch (error) {
-        console.error("Erro fatal ao ler ou processar o ficheiro Excel:", error);
+        console.error('ERRO FATAL DURANTE A MIGRAÇÃO:', error);
     }
-}
+};
 
-// Inicia a migração
-migrarDados();
+// --- VERIFICAÇÃO CORRIGIDA ---
+// Agora ele verifica se o token está vazio ou se AINDA É O TEXTO PADRÃO
+if (!AUTH_TOKEN ) {
+    console.error("ERRO: Token de autenticação não foi definido. Edite o arquivo 'migrar.js' e insira um token válido.");
+} else {
+    migrarDados();
+}

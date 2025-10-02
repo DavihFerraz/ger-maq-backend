@@ -23,6 +23,7 @@ const itemRoutes = require('./routes/itemRoutes');
 const emprestimoRoutes = require('./routes/emprestimoRoutes');
 const modeloRoutes = require('./routes/modeloRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
+const setorRoutes = require('./routes/setorRoutes'); 
 const cors = require('cors');
 
 // Criar uma instancia do Express
@@ -62,6 +63,11 @@ const swaggerDocs = swaggerjsdoc(swaggerOptions);
 app.use(express.json()); // Middleware para o Express interpretar JSON no corpo das requisições
 app.use(cors()); // Habilita CORS para todas as rotas
 
+const frontendPath = path.join(__dirname, '..', '..', 'ger-maq-frontend', 'app');
+app.use(express.static(frontendPath));
+
+
+
 
 // Cria uma rota de teste
 app.get('/', (req, res) => {
@@ -76,6 +82,7 @@ app.use('/api/itens', itemRoutes); // Usa as rotas de itens com o prefix
 app.use('/api/emprestimos', emprestimoRoutes); // Usa as rotas de empréstimos com o prefixo /api/emprestimos
 app.use('/api/modelos', modeloRoutes); // Usa as rotas de modelos com o prefixo /api/modelos
 app.use('/api/dashboard', dashboardRoutes); // Usa as rotas do dashboard com o prefixo /api/dashboard
+app.use('/api/setores', setorRoutes); // Usa as rotas de setores com o prefixo /api/setores
 
 // Inicia o servidor e escuta na porta definida
 app.listen(PORT, async () => {

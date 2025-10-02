@@ -16,6 +16,4 @@ const pool = new Pool({
 
 // Exportamos um objeto com o metodo query para executar consultas SQL
 // que executa uma consulta usando o pool de conexões
-module.exports = {
-  query: (text, params) => pool.query(text, params),
-};
+module.exports = pool;
