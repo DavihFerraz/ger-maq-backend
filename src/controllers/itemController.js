@@ -82,38 +82,67 @@ exports.getAllItems = async (req, res) => {
 // Atualizar um item 
 exports.updateItem = async (req, res) => {
     const { id } = req.params;
-    const { 
-        patrimonio, categoria, modelo_tipo, status, setor, cadastrado_gpm, 
-        espec_processador, espec_ram, espec_armazenamento, observacoes 
+    const {
+        patrimonio, categoria, modelo_tipo, status, setor, // 'setor' é o NOME do setor
+        cadastrado_gpm, espec_processador, espec_ram, espec_armazenamento, observacoes
     } = req.body;
 
+    const client = await db.connect();
     try {
-        const updatedItem = await db.query(
-            `UPDATE itens_inventario SET 
-                patrimonio = COALESCE($1, patrimonio), 
-                categoria = COALESCE($2, categoria), 
-                modelo_tipo = COALESCE($3, modelo_tipo), 
-                status = COALESCE($4, status), 
-                setor = COALESCE($5, setor), 
-                cadastrado_gpm = COALESCE($6, cadastrado_gpm), 
-                espec_processador = COALESCE($7, espec_processador), 
-                espec_ram = COALESCE($8, espec_ram), 
-                espec_armazenamento = COALESCE($9, espec_armazenamento), 
-                observacoes = COALESCE($10, observacoes)
-             WHERE id = $11 RETURNING *`,
-            [
-                patrimonio, categoria, modelo_tipo, status, setor, cadastrado_gpm,
-                espec_processador, espec_ram, espec_armazenamento, observacoes, id
-            ]
-        );
+        await client.query('BEGIN');
+
+        let setorId = null;
+        // Se um nome de setor foi enviado, precisamos encontrar o seu ID
+        if (setor) {
+            const setorExistente = await client.query('SELECT id FROM setores WHERE nome = $1', [setor]);
+            if (setorExistente.rows.length > 0) {
+                setorId = setorExistente.rows[0].id;
+            } else {
+                // Se o setor não existe, cria um novo
+                const novoSetor = await client.query('INSERT INTO setores (nome) VALUES ($1) RETURNING id', [setor]);
+                setorId = novoSetor.rows[0].id;
+            }
+        }
+
+        // Monta a query de atualização dinamicamente para evitar campos nulos indesejados
+        const fields = [];
+        const values = [];
+        let queryIndex = 1;
+
+        if (patrimonio !== undefined) { fields.push(`patrimonio = $${queryIndex++}`); values.push(patrimonio); }
+        if (categoria !== undefined) { fields.push(`categoria = $${queryIndex++}`); values.push(categoria); }
+        if (modelo_tipo !== undefined) { fields.push(`modelo_tipo = $${queryIndex++}`); values.push(modelo_tipo); }
+        if (status !== undefined) { fields.push(`status = $${queryIndex++}`); values.push(status); }
+        if (setorId !== null) { fields.push(`setor_id = $${queryIndex++}`); values.push(setorId); } // Atualiza com o ID do setor
+        if (cadastrado_gpm !== undefined) { fields.push(`cadastrado_gpm = $${queryIndex++}`); values.push(cadastrado_gpm); }
+        if (espec_processador !== undefined) { fields.push(`espec_processador = $${queryIndex++}`); values.push(espec_processador); }
+        if (espec_ram !== undefined) { fields.push(`espec_ram = $${queryIndex++}`); values.push(espec_ram); }
+        if (espec_armazenamento !== undefined) { fields.push(`espec_armazenamento = $${queryIndex++}`); values.push(espec_armazenamento); }
+        if (observacoes !== undefined) { fields.push(`observacoes = $${queryIndex++}`); values.push(observacoes); }
+
+        if (fields.length === 0) {
+            return res.status(400).json({ message: "Nenhum campo para atualizar foi fornecido." });
+        }
+
+        const query = `UPDATE itens_inventario SET ${fields.join(', ')} WHERE id = $${queryIndex} RETURNING *`;
+        values.push(id);
+
+        const updatedItem = await client.query(query, values);
 
         if (updatedItem.rows.length === 0) {
+            await client.query('ROLLBACK');
             return res.status(404).json({ message: "Item não encontrado." });
         }
+
+        await client.query('COMMIT');
         res.status(200).json(updatedItem.rows[0]);
+
     } catch (error) {
-        console.error(error);
+        await client.query('ROLLBACK');
+        console.error("Erro ao atualizar o item:", error);
         res.status(500).json({ message: "Erro ao atualizar o item." });
+    } finally {
+        client.release();
     }
 };
 
