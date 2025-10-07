@@ -4,23 +4,22 @@ const db = require('../config/database');
 // Listar todos os empréstimos ativos (que não foram devolvidos)
 exports.getActiveEmprestimos = async (req, res) => {
     try {
-        // A consulta agora faz um JOIN extra com a tabela 'setores'
         const { rows } = await db.query(
             `SELECT 
                 e.id, 
                 e.item_id, 
                 e.pessoa_depto, 
                 e.data_emprestimo, 
+                e.monitores_associados_ids, -- GARANTE QUE ESTA COLUNA É ENVIADA
                 i.patrimonio, 
                 i.modelo_tipo,
-                s.nome as setor_nome -- <-- Buscando o nome do setor
+                s.nome as setor_nome
              FROM emprestimos e
              JOIN itens_inventario i ON e.item_id = i.id
-             LEFT JOIN setores s ON i.setor_id = s.id -- <-- Fazendo a junção com a tabela setores
+             LEFT JOIN setores s ON i.setor_id = s.id
              WHERE e.data_devolucao IS NULL
              ORDER BY e.data_emprestimo DESC`
         );
-
         res.status(200).json(rows);
     } catch (error) {
         console.error(error);
@@ -78,12 +77,14 @@ exports.registerDevolucao = async (req, res) => {
         );
 
         // Se existirem monitores associados, atualiza também o status deles
+        /*
         if (monitores_associados_ids && monitores_associados_ids.length > 0) {
             await db.query(
                 `UPDATE itens_inventario SET status = 'Disponível' WHERE id = ANY($1::int[])`,
                 [monitores_associados_ids]
             );
         }
+            */
 
         res.status(200).json({ message: "Devolução registada com sucesso." });
     } catch (error) {
@@ -98,6 +99,7 @@ exports.getAllEmprestimos = async (req, res) => {
         const { rows } = await db.query(
             `SELECT 
                 e.id, e.item_id, e.pessoa_depto, e.data_emprestimo, e.data_devolucao, 
+                e.monitores_associados_ids, 
                 i.patrimonio, i.modelo_tipo, i.categoria, u.nome as nome_utilizador
              FROM emprestimos e
              JOIN itens_inventario i ON e.item_id = i.id
