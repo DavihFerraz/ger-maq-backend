@@ -82,9 +82,11 @@ exports.getAllItems = async (req, res) => {
 // Atualizar um item 
 exports.updateItem = async (req, res) => {
     const { id } = req.params;
+    // Pega todos os campos que podem ser atualizados
     const {
-        patrimonio, categoria, modelo_tipo, status, setor, // 'setor' é o NOME do setor
-        cadastrado_gpm, espec_processador, espec_ram, espec_armazenamento, observacoes
+        patrimonio, categoria, modelo_tipo, status, setor, // 'setor' é o NOME
+        cadastrado_gpm, espec_processador, espec_ram, espec_armazenamento, observacoes,
+        estado_conservacao 
     } = req.body;
 
     const client = await db.connect();
@@ -92,19 +94,18 @@ exports.updateItem = async (req, res) => {
         await client.query('BEGIN');
 
         let setorId = null;
-        // Se um nome de setor foi enviado, precisamos encontrar o seu ID
+        // Se um nome de setor foi enviado, encontra ou cria o seu ID
         if (setor) {
             const setorExistente = await client.query('SELECT id FROM setores WHERE nome = $1', [setor]);
             if (setorExistente.rows.length > 0) {
                 setorId = setorExistente.rows[0].id;
             } else {
-                // Se o setor não existe, cria um novo
                 const novoSetor = await client.query('INSERT INTO setores (nome) VALUES ($1) RETURNING id', [setor]);
                 setorId = novoSetor.rows[0].id;
             }
         }
 
-        // Monta a query de atualização dinamicamente para evitar campos nulos indesejados
+        // Monta a query de atualização dinamicamente
         const fields = [];
         const values = [];
         let queryIndex = 1;
@@ -113,12 +114,13 @@ exports.updateItem = async (req, res) => {
         if (categoria !== undefined) { fields.push(`categoria = $${queryIndex++}`); values.push(categoria); }
         if (modelo_tipo !== undefined) { fields.push(`modelo_tipo = $${queryIndex++}`); values.push(modelo_tipo); }
         if (status !== undefined) { fields.push(`status = $${queryIndex++}`); values.push(status); }
-        if (setorId !== null) { fields.push(`setor_id = $${queryIndex++}`); values.push(setorId); } // Atualiza com o ID do setor
+        if (setorId !== null) { fields.push(`setor_id = $${queryIndex++}`); values.push(setorId); }
         if (cadastrado_gpm !== undefined) { fields.push(`cadastrado_gpm = $${queryIndex++}`); values.push(cadastrado_gpm); }
         if (espec_processador !== undefined) { fields.push(`espec_processador = $${queryIndex++}`); values.push(espec_processador); }
         if (espec_ram !== undefined) { fields.push(`espec_ram = $${queryIndex++}`); values.push(espec_ram); }
         if (espec_armazenamento !== undefined) { fields.push(`espec_armazenamento = $${queryIndex++}`); values.push(espec_armazenamento); }
         if (observacoes !== undefined) { fields.push(`observacoes = $${queryIndex++}`); values.push(observacoes); }
+        if (estado_conservacao !== undefined) { fields.push(`estado_conservacao = $${queryIndex++}`); values.push(estado_conservacao); } // <-- PROCESSA O NOVO CAMPO
 
         if (fields.length === 0) {
             return res.status(400).json({ message: "Nenhum campo para atualizar foi fornecido." });
