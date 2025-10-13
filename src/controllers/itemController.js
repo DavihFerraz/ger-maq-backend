@@ -5,39 +5,37 @@ const db = require('../config/database');
 
 exports.createItem = async (req, res) => {
     const {
-        patrimonio, categoria, modelo_tipo, setor, // 'setor' agora é o NOME
+        patrimonio, categoria, modelo_tipo, setor,
         cadastrado_gpm, observacoes, estado_conservacao,
-        espec_processador, espec_ram, espec_armazenamento
+        espec_processador, espec_ram, espec_armazenamento,
+        quantidade // <-- Nova variável
     } = req.body;
     const criado_por_id = req.user.id;
 
-    const client = await db.connect(); // Usando 'db' que agora é o 'pool'
+    const client = await db.connect();
     try {
         await client.query('BEGIN');
 
         let setorId;
-        // Procura se o setor já existe
         const setorExistente = await client.query('SELECT id FROM setores WHERE nome = $1', [setor]);
 
         if (setorExistente.rows.length > 0) {
             setorId = setorExistente.rows[0].id;
         } else {
-            // Se não existir, cria um novo e pega o ID
-            const novoSetor = await client.query(
-                'INSERT INTO setores (nome) VALUES ($1) RETURNING id',
-                [setor]
-            );
+            const novoSetor = await client.query('INSERT INTO setores (nome) VALUES ($1) RETURNING id', [setor]);
             setorId = novoSetor.rows[0].id;
         }
 
         const newItem = await client.query(
             `INSERT INTO itens_inventario (
                 patrimonio, categoria, modelo_tipo, setor_id, cadastrado_gpm, observacoes,
-                estado_conservacao, criado_por_id, espec_processador, espec_ram, espec_armazenamento
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
+                estado_conservacao, criado_por_id, espec_processador, espec_ram, espec_armazenamento,
+                quantidade -- <-- Nova coluna
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`, // <-- Aumentar para $12
             [
                 patrimonio, categoria, modelo_tipo, setorId, cadastrado_gpm, observacoes,
-                estado_conservacao, criado_por_id, espec_processador, espec_ram, espec_armazenamento
+                estado_conservacao, criado_por_id, espec_processador, espec_ram, espec_armazenamento,
+                quantidade // <-- Novo valor
             ]
         );
 
@@ -47,7 +45,7 @@ exports.createItem = async (req, res) => {
     } catch (error) {
         await client.query('ROLLBACK');
         console.error("Erro em createItem:", error.message);
-        if (error.code === '23505') { // Código de erro para violação de unicidade
+        if (error.code === '23505') {
             return res.status(409).json({ message: `Item com patrimônio '${patrimonio}' já existe.` });
         }
         res.status(500).json({ message: "Erro ao criar o item." });

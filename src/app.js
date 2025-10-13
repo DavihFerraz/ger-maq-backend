@@ -24,6 +24,7 @@ const emprestimoRoutes = require('./routes/emprestimoRoutes');
 const modeloRoutes = require('./routes/modeloRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
 const setorRoutes = require('./routes/setorRoutes'); 
+const almoxarifadoRoutes = require('./routes/almoxarifadoRoutes'); 
 const cors = require('cors');
 
 // Criar uma instancia do Express
@@ -83,6 +84,7 @@ app.use('/api/emprestimos', emprestimoRoutes); // Usa as rotas de empréstimos c
 app.use('/api/modelos', modeloRoutes); // Usa as rotas de modelos com o prefixo /api/modelos
 app.use('/api/dashboard', dashboardRoutes); // Usa as rotas do dashboard com o prefixo /api/dashboard
 app.use('/api/setores', setorRoutes); // Usa as rotas de setores com o prefixo /api/setores
+app.use('/api/almoxarifado', almoxarifadoRoutes); // Usa as rotas do almoxarifado com o prefixo /api/almoxarifado
 
 // Inicia o servidor e escuta na porta definida
 app.listen(PORT, async () => {
