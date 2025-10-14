@@ -84,7 +84,8 @@ exports.updateItem = async (req, res) => {
     const {
         patrimonio, categoria, modelo_tipo, status, setor, // 'setor' é o NOME
         cadastrado_gpm, espec_processador, espec_ram, espec_armazenamento, observacoes,
-        estado_conservacao 
+        estado_conservacao,
+        quantidade // <-- ADICIONAMOS A QUANTIDADE AQUI
     } = req.body;
 
     const client = await db.connect();
@@ -92,7 +93,6 @@ exports.updateItem = async (req, res) => {
         await client.query('BEGIN');
 
         let setorId = null;
-        // Se um nome de setor foi enviado, encontra ou cria o seu ID
         if (setor) {
             const setorExistente = await client.query('SELECT id FROM setores WHERE nome = $1', [setor]);
             if (setorExistente.rows.length > 0) {
@@ -118,7 +118,10 @@ exports.updateItem = async (req, res) => {
         if (espec_ram !== undefined) { fields.push(`espec_ram = $${queryIndex++}`); values.push(espec_ram); }
         if (espec_armazenamento !== undefined) { fields.push(`espec_armazenamento = $${queryIndex++}`); values.push(espec_armazenamento); }
         if (observacoes !== undefined) { fields.push(`observacoes = $${queryIndex++}`); values.push(observacoes); }
-        if (estado_conservacao !== undefined) { fields.push(`estado_conservacao = $${queryIndex++}`); values.push(estado_conservacao); } // <-- PROCESSA O NOVO CAMPO
+        if (estado_conservacao !== undefined) { fields.push(`estado_conservacao = $${queryIndex++}`); values.push(estado_conservacao); }
+        
+        // ADICIONAMOS A VERIFICAÇÃO PARA O CAMPO QUANTIDADE
+        if (quantidade !== undefined) { fields.push(`quantidade = $${queryIndex++}`); values.push(quantidade); }
 
         if (fields.length === 0) {
             return res.status(400).json({ message: "Nenhum campo para atualizar foi fornecido." });
