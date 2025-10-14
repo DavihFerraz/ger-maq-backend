@@ -8,7 +8,7 @@ exports.registrarSaida = async (req, res) => {
     const criado_por_id = req.user.id;
 
     if (!itemId || !quantidade || (!pessoaNome && !setor)) {
-        return res.status(400).json({ message: 'Dados insuficientes para registrar a saída.' });
+        return res.status(400).json({ message: 'Dados insuficientes.' });
     }
 
     const client = await db.connect();
@@ -21,31 +21,23 @@ exports.registrarSaida = async (req, res) => {
             if (setorResult.rows.length > 0) {
                 setorIdParaInserir = setorResult.rows[0].id;
             } else {
-                throw new Error(`O setor '${setor}' não foi encontrado.`);
+                // Se o setor não existir, cria um novo
+                const novoSetor = await client.query('INSERT INTO setores (nome) VALUES ($1) RETURNING id', [setor]);
+                setorIdParaInserir = novoSetor.rows[0].id;
             }
         }
 
-        const itemResult = await client.query('SELECT quantidade, status FROM itens_inventario WHERE id = $1 FOR UPDATE', [itemId]);
+        const itemResult = await client.query('SELECT quantidade FROM itens_inventario WHERE id = $1 FOR UPDATE', [itemId]);
         if (itemResult.rows.length === 0) { throw new Error('Item não encontrado.'); }
 
-        const { quantidade: estoqueAtual, status: statusAtual } = itemResult.rows[0];
-
-        // --- LÓGICA PRINCIPAL ALTERADA AQUI ---
-        if (ehDevolucao) {
-            // Se for um item para DEVOLUÇÃO (EMPRÉSTIMO)
-            if (statusAtual !== 'Disponível') {
-                throw new Error('Este item não está disponível para empréstimo.');
-            }
-            // Altera o status para 'Em Empréstimo'
-            await client.query(`UPDATE itens_inventario SET status = 'Em Empréstimo' WHERE id = $1`, [itemId]);
-        } else {
-            // Se for um item de CONSUMO (lógica antiga)
-            if (estoqueAtual < quantidade) {
-                throw new Error('Quantidade em estoque é insuficiente.');
-            }
-            const novoEstoque = estoqueAtual - quantidade;
-            await client.query('UPDATE itens_inventario SET quantidade = $1 WHERE id = $2', [novoEstoque, itemId]);
+        const estoqueAtual = itemResult.rows[0].quantidade;
+        if (estoqueAtual < quantidade) {
+            throw new Error('Quantidade em estoque é insuficiente.');
         }
+
+        // A LÓGICA AGORA É A MESMA PARA AMBOS: SEMPRE SUBTRAI DO ESTOQUE
+        const novoEstoque = estoqueAtual - quantidade;
+        await client.query('UPDATE itens_inventario SET quantidade = $1 WHERE id = $2', [novoEstoque, itemId]);
 
         await client.query(
             `INSERT INTO almoxarifado_movimentacoes 
@@ -65,8 +57,6 @@ exports.registrarSaida = async (req, res) => {
         client.release();
     }
 };
-
-
 // Função  para buscar o histórico de um item
 exports.getHistoricoItem = async (req, res) => {
     const { itemId } = req.params;
@@ -92,40 +82,24 @@ exports.getHistoricoItem = async (req, res) => {
 
 
 exports.registrarDevolucao = async (req, res) => {
-    // O ID que vem na URL é o ID da MOVIMENTAÇÃO de saída
     const { movimentacaoId } = req.params;
     const client = await db.connect();
 
     try {
         await client.query('BEGIN');
 
-        // 1. Encontra a movimentação de saída original
-        const movimentacaoResult = await client.query(
-            'SELECT * FROM almoxarifado_movimentacoes WHERE id = $1 FOR UPDATE',
-            [movimentacaoId]
-        );
-
-        if (movimentacaoResult.rows.length === 0) {
-            throw new Error('Registro de movimentação não encontrado.');
-        }
+        const movimentacaoResult = await client.query('SELECT * FROM almoxarifado_movimentacoes WHERE id = $1 FOR UPDATE', [movimentacaoId]);
+        if (movimentacaoResult.rows.length === 0) throw new Error('Registro de movimentação não encontrado.');
 
         const movimentacao = movimentacaoResult.rows[0];
+        if (movimentacao.data_devolucao) throw new Error('Este item já foi devolvido.');
 
-        // 2. Verifica se o item já não foi devolvido
-        if (movimentacao.data_devolucao) {
-            throw new Error('Este item já foi devolvido anteriormente.');
-        }
+        await client.query("UPDATE almoxarifado_movimentacoes SET data_devolucao = NOW(), tipo_movimentacao = 'DEVOLUCAO' WHERE id = $1", [movimentacaoId]);
 
-        // 3. Atualiza o registro de movimentação, adicionando a data de devolução
+        // DEVOLVE A QUANTIDADE AO ESTOQUE DO ITEM PRINCIPAL
         await client.query(
-            "UPDATE almoxarifado_movimentacoes SET data_devolucao = NOW(), tipo_movimentacao = 'DEVOLUCAO' WHERE id = $1",
-            [movimentacaoId]
-        );
-
-        // 4. Atualiza o status do item no inventário principal para 'Disponível'
-        await client.query(
-            "UPDATE itens_inventario SET status = 'Disponível' WHERE id = $1",
-            [movimentacao.item_id]
+            "UPDATE itens_inventario SET quantidade = quantidade + $1 WHERE id = $2",
+            [movimentacao.quantidade_movimentada, movimentacao.item_id]
         );
 
         await client.query('COMMIT');
@@ -134,7 +108,7 @@ exports.registrarDevolucao = async (req, res) => {
     } catch (error) {
         await client.query('ROLLBACK');
         console.error("Erro em registrarDevolucao:", error.message);
-        res.status(500).json({ message: error.message || 'Erro interno ao processar a devolução.' });
+        res.status(500).json({ message: error.message || 'Erro ao processar a devolução.' });
     } finally {
         client.release();
     }
