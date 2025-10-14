@@ -4,7 +4,8 @@ const db = require('../config/database');
 
 // Função  para registrar a saída de um item
 exports.registrarSaida = async (req, res) => {
-    const { itemId, pessoaNome, setor, quantidade, observacoes, ehDevolucao } = req.body;
+    // Adicionamos 'data_prevista_devolucao'
+    const { itemId, pessoaNome, setor, quantidade, observacoes, ehDevolucao, data_prevista_devolucao } = req.body;
     const criado_por_id = req.user.id;
 
     if (!itemId || !quantidade || (!pessoaNome && !setor)) {
@@ -21,7 +22,6 @@ exports.registrarSaida = async (req, res) => {
             if (setorResult.rows.length > 0) {
                 setorIdParaInserir = setorResult.rows[0].id;
             } else {
-                // Se o setor não existir, cria um novo
                 const novoSetor = await client.query('INSERT INTO setores (nome) VALUES ($1) RETURNING id', [setor]);
                 setorIdParaInserir = novoSetor.rows[0].id;
             }
@@ -31,19 +31,17 @@ exports.registrarSaida = async (req, res) => {
         if (itemResult.rows.length === 0) { throw new Error('Item não encontrado.'); }
 
         const estoqueAtual = itemResult.rows[0].quantidade;
-        if (estoqueAtual < quantidade) {
-            throw new Error('Quantidade em estoque é insuficiente.');
-        }
-
-        // A LÓGICA AGORA É A MESMA PARA AMBOS: SEMPRE SUBTRAI DO ESTOQUE
+        if (estoqueAtual < quantidade) { throw new Error('Quantidade em estoque é insuficiente.'); }
+        
         const novoEstoque = estoqueAtual - quantidade;
         await client.query('UPDATE itens_inventario SET quantidade = $1 WHERE id = $2', [novoEstoque, itemId]);
 
+        // Adicionamos a nova coluna ao INSERT
         await client.query(
             `INSERT INTO almoxarifado_movimentacoes 
-            (item_id, pessoa_nome, setor_id, quantidade_movimentada, tipo_movimentacao, observacoes, criado_por_id, data_devolucao) 
-            VALUES ($1, $2, $3, $4, 'SAIDA', $5, $6, $7)`,
-            [itemId, pessoaNome, setorIdParaInserir, quantidade, observacoes, criado_por_id, ehDevolucao ? null : new Date()]
+            (item_id, pessoa_nome, setor_id, quantidade_movimentada, tipo_movimentacao, observacoes, criado_por_id, data_devolucao, data_prevista_devolucao) 
+            VALUES ($1, $2, $3, $4, 'SAIDA', $5, $6, $7, $8)`, // Aumenta para $8
+            [itemId, pessoaNome, setorIdParaInserir, quantidade, observacoes, criado_por_id, ehDevolucao ? null : new Date(), ehDevolucao ? data_prevista_devolucao : null]
         );
 
         await client.query('COMMIT');
