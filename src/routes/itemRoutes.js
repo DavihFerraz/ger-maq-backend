@@ -3,6 +3,7 @@ const express = require('express');
 const router = express.Router();
 const itemController = require('../controllers/itemController');
 const authMiddleware = require('../middleware/authMiddleware');
+const editorMiddleware = require('../middleware/editorMiddleware');
 
 router.use(authMiddleware);
 
@@ -16,7 +17,7 @@ router.use(authMiddleware);
  *       '200':
  *         description: OK
  */
-router.get('/', itemController.getAllItems);
+router.get('/', authMiddleware, itemController.getAllItems);
 
 /**
  * @swagger
@@ -43,7 +44,7 @@ router.get('/', itemController.getAllItems);
  *       '201':
  *         description: Criado
  */
-router.post('/', itemController.createItem);
+router.post('/', authMiddleware, editorMiddleware, itemController.createItem);
 
 
 /**
@@ -67,7 +68,8 @@ router.post('/', itemController.createItem);
  *       '404':
  *         description: Item não encontrado
  */
-router.delete('/:id', itemController.deleteItem);
+router.delete('/:id', authMiddleware, editorMiddleware, itemController.deleteItem);
+
 /**
  * @swagger
  * /api/itens/{id}:
@@ -106,7 +108,7 @@ router.delete('/:id', itemController.deleteItem);
  *       '404':
  *         description: Item não encontrado
  */
-router.put('/:id', itemController.updateItem);
+router.put('/:id', authMiddleware, editorMiddleware, itemController.updateItem);
 
-router.get('/:id/historico', itemController.getItemHistory);
+router.get('/:id/historico', authMiddleware, itemController.getItemHistory);
 module.exports = router;

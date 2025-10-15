@@ -3,6 +3,7 @@ const express = require('express');
 const router = express.Router();
 const emprestimoController = require('../controllers/emprestimoController');
 const authMiddleware = require('../middleware/authMiddleware');
+const editorMiddleware = require('../middleware/editorMiddleware');
 
 router.use(authMiddleware);
 
@@ -39,7 +40,7 @@ router.get('/', emprestimoController.getActiveEmprestimos);
  *       '201':
  *         description: Criado
  */
-router.post('/', emprestimoController.createEmprestimo);
+router.post('/', authMiddleware, editorMiddleware, emprestimoController.createEmprestimo);
 
 /**
  * @swagger
@@ -57,9 +58,8 @@ router.post('/', emprestimoController.createEmprestimo);
  *       '200':
  *         description: OK
  */
-router.put('/:id/devolver', emprestimoController.registerDevolucao);
+router.put('/:id/devolver', authMiddleware, editorMiddleware, emprestimoController.registerDevolucao);
 
 
-router.get('/', emprestimoController.getAllEmprestimos);
-
+router.get('/', authMiddleware, emprestimoController.getAllEmprestimos);
 module.exports = router;
