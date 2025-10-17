@@ -6,10 +6,10 @@ const editorMiddleware = require('../middleware/editorMiddleware');
 
 
 // Rota para registrar uma nova saída de item do almoxarifado
-router.post('/saida', editorMiddleware, almoxarifadoController.registrarSaida);
+router.post('/saida',authMiddleware, editorMiddleware, almoxarifadoController.registrarSaida);
 
 // Rota para registrar a devolução de um item
-router.post('/devolucao/:movimentacaoId', editorMiddleware, almoxarifadoController.registrarDevolucao);
+router.post('/devolucao/:movimentacaoId', authMiddleware, editorMiddleware, almoxarifadoController.registrarDevolucao);
 
 // Rota para buscar o histórico de movimentações de um item específico
 router.get('/historico/:itemId', authMiddleware, almoxarifadoController.getHistoricoItem);
