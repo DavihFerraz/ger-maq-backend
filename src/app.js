@@ -88,6 +88,8 @@ app.use('/api/setores', setorRoutes); // Usa as rotas de setores com o prefixo /
 app.use('/api/almoxarifado', almoxarifadoRoutes); // Usa as rotas do almoxarifado com o prefixo /api/almoxarifado
 app.use('/api/users', userRoutes); // Usa as rotas de usuários com o prefixo /api/users
 
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+
 // Inicia o servidor e escuta na porta definida
 app.listen(PORT, async () => {
   console.log(`Servidor rodando em http://localhost:${PORT}`);

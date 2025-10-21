@@ -4,6 +4,7 @@ const router = express.Router();
 const itemController = require('../controllers/itemController');
 const authMiddleware = require('../middleware/authMiddleware');
 const editorMiddleware = require('../middleware/editorMiddleware');
+const upload = require('../middleware/uploadMiddleware');
 
 router.use(authMiddleware);
 
@@ -44,8 +45,7 @@ router.get('/', authMiddleware, itemController.getAllItems);
  *       '201':
  *         description: Criado
  */
-router.post('/', authMiddleware, editorMiddleware, itemController.createItem);
-
+router.post('/', authMiddleware, editorMiddleware, upload.array('anexos', 5), itemController.createItem);
 
 /**
  * @swagger

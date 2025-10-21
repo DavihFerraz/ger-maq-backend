@@ -4,52 +4,51 @@ const db = require('../config/database');
 // Criar um novo item 
 
 exports.createItem = async (req, res) => {
-    const {
-        patrimonio, categoria, modelo_tipo, setor,
-        cadastrado_gpm, observacoes, estado_conservacao,
-        espec_processador, espec_ram, espec_armazenamento,
-        quantidade // <-- Nova variável
-    } = req.body;
-    const criado_por_id = req.user.id;
+    // Note que 'cadastrado_gpm' virá como string do FormData
+    const { categoria, modelo_tipo, patrimonio, setor, estado_conservacao, observacoes, cadastrado_gpm, espec_processador, espec_ram, espec_armazenamento, quantidade } = req.body;
 
-    const client = await db.connect();
+    const client = await pool.connect();
+
     try {
+        // Inicia a transação
         await client.query('BEGIN');
 
-        let setorId;
-        const setorExistente = await client.query('SELECT id FROM setores WHERE nome = $1', [setor]);
+        // 1. Insere o item na tabela principal
+        const itemQuery = `
+            INSERT INTO itens_inventario (categoria, modelo_tipo, patrimonio, setor_id, estado_conservacao, observacoes, cadastrado_gpm, espec_processador, espec_ram, espec_armazenamento, quantidade, status)
+            VALUES ($1, $2, $3, (SELECT id FROM setores WHERE nome = $4), $5, $6, $7, $8, $9, $10, $11, 'Disponível')
+            RETURNING id;
+        `;
+        const itemValues = [
+            categoria, modelo_tipo, patrimonio, setor, estado_conservacao, observacoes,
+            cadastrado_gpm === 'true', // Converte string para booleano
+            espec_processador || null, espec_ram || null, espec_armazenamento || null,
+            quantidade || null
+        ];
+        const result = await client.query(itemQuery, itemValues);
+        const newItemId = result.rows[0].id;
 
-        if (setorExistente.rows.length > 0) {
-            setorId = setorExistente.rows[0].id;
-        } else {
-            const novoSetor = await client.query('INSERT INTO setores (nome) VALUES ($1) RETURNING id', [setor]);
-            setorId = novoSetor.rows[0].id;
+        // 2. Se houver arquivos, insere na tabela de anexos
+        if (req.files && req.files.length > 0) {
+            const anexoQuery = 'INSERT INTO anexos_itens (item_id, nome_arquivo, caminho_arquivo) VALUES ($1, $2, $3)';
+            for (const file of req.files) {
+                // file.originalname é o nome original do arquivo, file.path é onde ele foi salvo
+                const anexoValues = [newItemId, file.originalname, file.path];
+                await client.query(anexoQuery, anexoValues);
+            }
         }
 
-        const newItem = await client.query(
-            `INSERT INTO itens_inventario (
-                patrimonio, categoria, modelo_tipo, setor_id, cadastrado_gpm, observacoes,
-                estado_conservacao, criado_por_id, espec_processador, espec_ram, espec_armazenamento,
-                quantidade -- <-- Nova coluna
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`, // <-- Aumentar para $12
-            [
-                patrimonio, categoria, modelo_tipo, setorId, cadastrado_gpm, observacoes,
-                estado_conservacao, criado_por_id, espec_processador, espec_ram, espec_armazenamento,
-                quantidade // <-- Novo valor
-            ]
-        );
-
+        // Confirma a transação
         await client.query('COMMIT');
-        res.status(201).json(newItem.rows[0]);
+        res.status(201).json({ message: 'Item criado com sucesso!', id: newItemId });
 
     } catch (error) {
+        // Desfaz a transação em caso de erro
         await client.query('ROLLBACK');
-        console.error("Erro em createItem:", error.message);
-        if (error.code === '23505') {
-            return res.status(409).json({ message: `Item com patrimônio '${patrimonio}' já existe.` });
-        }
-        res.status(500).json({ message: "Erro ao criar o item." });
+        console.error('Erro ao criar item:', error);
+        res.status(500).json({ error: 'Erro interno do servidor' });
     } finally {
+        // Libera a conexão com o banco
         client.release();
     }
 };

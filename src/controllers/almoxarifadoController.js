@@ -1,6 +1,9 @@
 // Em /src/controllers/almoxarifadoController.js
 
 const db = require('../config/database');
+const pool = require('../config/database');
+
+
 
 // Função  para registrar a saída de um item
 exports.registrarSaida = async (req, res) => {
@@ -109,5 +112,74 @@ exports.registrarDevolucao = async (req, res) => {
         res.status(500).json({ message: error.message || 'Erro ao processar a devolução.' });
     } finally {
         client.release();
+    }
+};
+
+exports.createAlmoxarifadoItem = async (req, res) => {
+    // Dados virão do FormData
+    const { modelo_tipo, patrimonio, quantidade, observacoes, setor } = req.body;
+
+    const client = await pool.connect();
+
+    try {
+        // Inicia a transação
+        await client.query('BEGIN');
+
+        // 1. Insere o item na tabela principal 'itens_inventario'
+        const itemQuery = `
+            INSERT INTO itens_inventario 
+            (categoria, modelo_tipo, patrimonio, quantidade, observacoes, setor_id, status)
+            VALUES ($1, $2, $3, $4, $5, (SELECT id FROM setores WHERE nome = $6), $7)
+            RETURNING id;
+        `;
+        const itemValues = [
+            'ALMOXARIFADO',
+            modelo_tipo,
+            patrimonio || null,
+            parseInt(quantidade, 10),
+            observacoes || null,
+            setor || 'Almoxarifado', // Define um padrão se não for enviado
+            'Disponível'
+        ];
+
+        const result = await client.query(itemQuery, itemValues);
+        const newItemId = result.rows[0].id;
+
+        // 2. Se houver arquivos (req.files), insere na tabela 'anexos_itens'
+        if (req.files && req.files.length > 0) {
+            const anexoQuery = 'INSERT INTO anexos_itens (item_id, nome_arquivo, caminho_arquivo) VALUES ($1, $2, $3)';
+            for (const file of req.files) {
+                // file.path é onde o multer salvou o arquivo (ex: "uploads/anexos-12345.pdf")
+                const anexoValues = [newItemId, file.originalname, file.path];
+                await client.query(anexoQuery, anexoValues);
+            }
+        }
+
+        // Confirma a transação
+        await client.query('COMMIT');
+        res.status(201).json({ message: 'Item de almoxarifado criado com sucesso!', id: newItemId });
+
+    } catch (error) {
+        // Desfaz a transação em caso de erro
+        await client.query('ROLLBACK');
+        console.error('Erro ao criar item de almoxarifado:', error);
+        res.status(500).json({ error: 'Erro interno do servidor' });
+    } finally {
+        // Libera a conexão
+        client.release();
+    }
+};
+
+
+exports.getAnexosItem = async (req, res) => {
+    const { id } = req.params; // Pega o ID do item da URL
+    try {
+        const query = 'SELECT id, nome_arquivo, caminho_arquivo FROM anexos_itens WHERE item_id = $1 ORDER BY data_upload DESC';
+        const { rows } = await pool.query(query, [id]);
+        
+        res.status(200).json(rows);
+    } catch (error) {
+        console.error('Erro ao buscar anexos:', error);
+        res.status(500).json({ error: 'Erro interno do servidor' });
     }
 };
