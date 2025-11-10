@@ -1,5 +1,7 @@
 const { json } = require('express');
 const db = require('../config/database');
+const pool = require('../config/database');
+
 
 // Criar um novo item 
 
